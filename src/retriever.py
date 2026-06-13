@@ -32,7 +32,7 @@ COLLECTION   = "sebi_mf"
 
 DENSE_TOP_K  = 20    # fetch top 20 from Qdrant
 BM25_TOP_K   = 20    # fetch top 20 from BM25
-FINAL_TOP_K  = 5     # send top 5 to the LLM
+FINAL_TOP_K  = 2     # send top 5 to the LLM
 RRF_K        = 60    # RRF constant — standard value, don't change
 
 QDRANT_PATH  = Path(__file__).parent.parent / "data" / "qdrant_store"
