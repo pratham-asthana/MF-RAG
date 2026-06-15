@@ -1,28 +1,9 @@
-"""
-rag_pipeline.py — Step 4: Generate a grounded answer using the LLM
-
-What this file does:
-  1. Takes a user query
-  2. Retrieves the top 5 most relevant chunks (via retriever.py)
-  3. Builds a prompt that shows those chunks to the LLM
-  4. Calls phi3:mini (running locally via Ollama) to generate an answer
-  5. Returns the answer + which sources it came from
-
-The LLM is told: "Only use these chunks. Cite [SOURCE N] inline."
-This is what makes it a RAG system — the LLM cannot hallucinate because
-it is constrained to only use what we retrieved.
-"""
-
 from typing import List, Dict
 import ollama
-
 from retriever import Retriever
 
-# ── Settings ──────────────────────────────────────────────────────────────────
-LLM_MODEL = "phi3:mini"   # Pull with: ollama pull phi3:mini
-# ──────────────────────────────────────────────────────────────────────────────
-
-# This is the instruction we give the LLM before every conversation
+LLM_MODEL = "phi3:mini" 
+  
 SYSTEM_PROMPT = """You are a SEBI Mutual Fund regulatory assistant.
  
 Answer using ONLY the document excerpts given to you.
@@ -44,22 +25,6 @@ Format:
 
 
 def build_prompt(query: str, chunks: List[Dict]) -> str:
-    """
-    Builds the full prompt sent to the LLM.
-
-    Format:
-      QUESTION: <user question>
-
-      DOCUMENT EXCERPTS:
-      [SOURCE 1]
-      Document: xyz.pdf | Page: 3
-      <chunk text>
-      ---
-      [SOURCE 2]
-      ...
-
-      ANSWER:
-    """
     excerpts = []
     for i, result in enumerate(chunks, 1):
         chunk = result["chunk"]
@@ -82,7 +47,6 @@ def build_prompt(query: str, chunks: List[Dict]) -> str:
 
 
 def get_sources(chunks: List[Dict]) -> List[Dict]:
-    """Extract clean source metadata from retrieved chunks."""
     sources = []
     for i, result in enumerate(chunks, 1):
         chunk = result["chunk"]
@@ -90,44 +54,31 @@ def get_sources(chunks: List[Dict]) -> List[Dict]:
             "label":   f"[SOURCE {i}]",
             "file":    chunk["source"],
             "page":    chunk["page"],
-            "snippet": chunk["text"][:250] + "...",   # short preview
+            "snippet": chunk["text"][:250] + "...",   
         })
     return sources
 
 
 def answer(query: str, retriever: Retriever) -> Dict:
-    """
-    Main RAG function. Takes a query, returns answer + sources.
-
-    Returns:
-    {
-        "answer":  "The maximum TER is... [SOURCE 1]",
-        "sources": [{"label": "[SOURCE 1]", "file": "...", "page": 3, "snippet": "..."}, ...]
-    }
-    """
-    # Step 1: Retrieve top 5 relevant chunks
+    
     retrieved_chunks = retriever.retrieve(query)
 
     if not retrieved_chunks:
         return {"answer": "No relevant documents found.", "sources": []}
 
-    # Step 2: Build the prompt with those chunks
     prompt = build_prompt(query, retrieved_chunks)
 
-    # Step 3: Send to phi3:mini via Ollama
     response = ollama.chat(
         model=LLM_MODEL,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user",   "content": prompt},
         ],
-        options={"temperature": 0.1},   # low = more factual, less creative
+        options={"temperature": 0.1},   
     )
-
-    # Step 4: Extract answer text
+    
     answer_text = response["message"]["content"].strip()
 
-    # Step 5: Package sources for display
     sources = get_sources(retrieved_chunks)
 
     return {
@@ -136,7 +87,6 @@ def answer(query: str, retriever: Retriever) -> Dict:
     }
 
 
-# Test the full pipeline directly
 if __name__ == "__main__":
     retriever = Retriever()
 

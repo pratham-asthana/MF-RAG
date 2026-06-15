@@ -1,105 +1,84 @@
 # SEBI Mutual Fund RAG System
 
-A fully local, open-source RAG (Retrieval-Augmented Generation) system built on official SEBI Mutual Fund regulatory documents. Ask questions in plain English — get grounded, cited answers. No API keys. No internet required after setup.
+A local RAG (Retrieval-Augmented Generation) chatbot for SEBI Mutual Fund documents. Ask questions and get answers with citations from official regulatory documents.
 
 ---
 
-## Architecture
+## Prerequisites
 
-```
-Your Question
-     │
-     ▼
-┌─────────────────────────────────┐
-│         RETRIEVAL               │
-│                                 │
-│  Dense Search    Keyword Search │
-│  (Qdrant +       (BM25)        │
-│   BGE-Large)                    │
-│       │               │         │
-│       └──── RRF Fusion ────┘    │
-│              (top 40)           │
-│                 │               │
-│        Cross-Encoder Rerank     │
-│              (top 5)            │
-└──────────────┬──────────────────┘
-               │
-               ▼
-┌─────────────────────────────────┐
-│         GENERATION              │
-│    phi3:mini via Ollama         │
-│    (runs on your GPU locally)   │
-│  Answer + [SOURCE N] citations  │
-└──────────────┬──────────────────┘
-               │
-               ▼
-┌─────────────────────────────────┐
-│         STREAMLIT UI            │
-│  Chat interface + Source cards  │
-└─────────────────────────────────┘
-```
+- Python 3.8+
+- Ollama (for running the LLM locally)
 
 ---
 
-## Documents
+## Setup
 
-| # | Document | Date |
-|---|---|---|
-| 1 | Master Circular for Mutual Funds | Mar 20, 2026 |
-| 2 | Categorization and Rationalization of MF Schemes | Feb 2026 |
-| 3 | MF Lite Framework for Passive Schemes | Dec 31, 2024 |
-| 4 | Disclosure of Expenses, Returns, Yield & Risk-o-meter | Nov 2024 |
-| 5 | Transaction Charges to MF Distributors | Aug 2025 |
-| 6 | Swing Pricing Framework | Sep 2021 |
+### 1. Install Ollama
+Download from https://ollama.com and install on your system.
 
-All sourced from [sebi.gov.in](https://www.sebi.gov.in)
-
----
-
-## Setup & Run
-
-### 1. Install Ollama and pull the model
-Download Ollama from https://ollama.com, then:
+### 2. Pull the model
 ```bash
 ollama pull phi3:mini
 ```
 
-### 2. Install Python dependencies
+### 3. Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Place documents
-Copy all SEBI PDFs into:
-```
-data/documents/
-```
+### 4. Add documents
+Place all SEBI PDF documents in the `data/documents/` folder.
 
-### 4. Index documents (run once)
+### 5. Index the documents (one-time setup)
 ```bash
-cd src
-python indexer.py
+python src/indexer.py
 ```
-
-### 5. Launch the app
-```bash
-streamlit run src/app.py
-```
-Open http://localhost:8501 in your browser.
 
 ---
 
-## Design Decisions
+## Execution Flow
 
-**BGE-Large embeddings** — Ranked #1 on MTEB retrieval benchmark. Runs locally, no API cost.
+```
+1. User Input (Streamlit UI)
+         ↓
+2. Question Retrieval
+   • Dense search (BGE embeddings + Qdrant)
+   • Keyword search (BM25)
+   • Rerank with cross-encoder
+         ↓
+3. LLM Generation (phi3:mini via Ollama)
+   • Ground answer in retrieved chunks
+   • Add source citations
+         ↓
+4. Display Result
+   • Show answer with [SOURCE N] citations
+   • Display relevant document excerpts
+```
 
-**Hybrid retrieval (Dense + BM25)** — Dense search finds semantically similar chunks; BM25 finds exact keyword matches (e.g. regulation codes). Combining both with RRF gives better results than either alone.
+---
 
-**Cross-encoder reranking** — The embedding model ranks chunks approximately. A cross-encoder scores each (query, chunk) pair precisely. Reranking the top 40 down to 5 dramatically improves what the LLM sees.
+## File Descriptions
 
-**phi3:mini** — Microsoft's 3.8B model. Specifically trained for instruction-following and factual Q&A. Ideal for constrained RAG tasks where the LLM must stay grounded in retrieved context. Runs cleanly on a 4GB GPU.
+| File | Purpose |
+|------|---------|
+| `src/app.py` | Streamlit UI — Chat interface for asking questions |
+| `src/indexer.py` | Builds vector embeddings (Qdrant) and BM25 index from documents (run once) |
+| `src/ingest.py` | Loads and chunks PDF documents into text segments |
+| `src/retriever.py` | Hybrid retrieval system — searches dense vectors + BM25, reranks with cross-encoder |
+| `src/rag_pipeline.py` | LLM pipeline — generates answers using phi3:mini with retrieved context |
+| `requirements.txt` | Python dependencies |
 
-**Qdrant (local mode)** — Production-grade vector store running as local files. No server setup needed.
+---
+
+## How to Run
+
+```bash
+streamlit run src/app.py
+```
+
+Open your browser and go to: **http://localhost:8501**
+
+Start asking questions about Mutual Funds and SEBI regulations!
 
 ---
 
